@@ -9,7 +9,7 @@ public class TasksUtil {
     public List<Integer> findEvenNumbers(List<Integer> givenList) {
         return givenList
                 .stream()
-                .filter(elem -> elem % 2 == 0 && elem > 0)
+                .filter(elem -> (elem & 1) != 1)
                 .collect(Collectors.toList());
     }
 
@@ -17,7 +17,7 @@ public class TasksUtil {
     public List<Integer> findOddNumbers(List<Integer> givenList) {
         return givenList
                 .stream()
-                .filter(elem -> elem % 2 != 0 && elem > 0)
+                .filter(elem -> (elem & 1) == 1)
                 .collect(Collectors.toList());
     }
 
@@ -37,10 +37,13 @@ public class TasksUtil {
     }
 
     private int gcd(int value1, int value2) {
-        if (value1 == 0) {
-            return value2;
+        int temp;
+        while (value2 != 0) {
+            temp = value2;
+            value2 = value1 % value2;
+            value1 = temp;
         }
-        return gcd(value2 % value1, value1);
+        return value1;
     }
 
     // Task4: Найти НОК
@@ -62,19 +65,19 @@ public class TasksUtil {
                 .collect(Collectors.toList());
     }
 
-    private boolean isPrimeNumber(int value) {
+    private boolean isPrimeNumber(final int value) {
         if (value <= 1) {
             return false;
         }
-        for (int i = 2; i <= (int) Math.sqrt(value); i++) {
-            if (value % i == 0) return false;
-        }
-        return true;
+        return IntStream
+                .rangeClosed(2, (int) Math.sqrt(value))
+                .noneMatch(i -> value % i == 0);
     }
 
     //Task6: Найти счастливые числа
     public List<Integer> findHappyNumbers(List<Integer> givenList) {
-        return givenList.stream()
+        return givenList
+                .stream()
                 .filter(this::isHappyNumber)
                 .collect(Collectors.toList());
     }
@@ -86,8 +89,12 @@ public class TasksUtil {
         }
         int result = value;
         while (result != 1) {
-            result = Stream.of(String.valueOf(result).split(""))
-                    .map((elem) -> Character.getNumericValue(elem.charAt(0)))
+            int[] digits = IntStream
+                    .iterate(result, i -> i > 0, i -> i / 10)
+                    .map(i -> i % 10)
+                    .toArray();
+            result = Arrays
+                    .stream(digits)
                     .reduce(0, (sum, elem) -> sum + elem * elem);
             if (result == 4) {
                 isHappy = false;
@@ -101,20 +108,20 @@ public class TasksUtil {
     public List<Integer> findFibonacciNumbers(List<Integer> givenList) {
         return givenList
                 .stream()
-                .filter(this::isFibonacciNumber)
+                .filter((elem) -> isFibonacciNumber(elem) && elem >= 0)
                 .collect(Collectors.toList());
     }
 
+
+    private boolean isPerfectSquare(int value) {
+        int s = (int) Math.sqrt(value);
+        return (s * s == value);
+    }
+
+
     private boolean isFibonacciNumber(int value) {
-        int current = 0;
-        int previous = 1;
-        int prePrevious = 0;
-        while (current < value) {
-            current = previous + prePrevious;
-            prePrevious = previous;
-            previous = current;
-        }
-        return current == value;
+        return isPerfectSquare(5 * value * value + 4) ||
+                isPerfectSquare(5 * value * value - 4);
     }
 
     //Task8: Поиск чисел-палиндромов
@@ -207,6 +214,4 @@ public class TasksUtil {
     }
 
 
-
 }
-
