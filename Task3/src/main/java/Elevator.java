@@ -1,12 +1,21 @@
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.ArrayList;
 import java.util.List;
 
 public class Elevator {
 
+    @Getter
     private final int topFloor;
     private final int capacity;
+    @Getter
     private final List<Passenger> container;
+    @Getter
+    @Setter
     private int currentFloor = 0;
+    @Getter
+    @Setter
     private MovementDirection movementDirection = MovementDirection.UP;
 
 
@@ -24,10 +33,6 @@ public class Elevator {
         return container.isEmpty();
     }
 
-    public int getCurrentFloor() {
-        return currentFloor;
-    }
-
     public void addPassenger(Passenger passenger) {
         container.add(passenger);
     }
@@ -36,24 +41,9 @@ public class Elevator {
         container.remove(passenger);
     }
 
-    public void setCurrentFloor(int currentFloor) {
-        this.currentFloor = currentFloor;
-    }
-
-    public void setMovementDirection(MovementDirection movementDirection) {
-        this.movementDirection = movementDirection;
-    }
-
-    public MovementDirection getMovementDirection() {
-        return movementDirection;
-    }
-
-    public int getTopFloor() {
-        return topFloor;
-    }
-
     public boolean hasPassenger(Passenger passenger) {
         return container.contains(passenger);
     }
+
 
 }

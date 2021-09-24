@@ -1,58 +1,32 @@
-import java.io.IOException;
-import java.net.URISyntaxException;
-import java.nio.file.Paths;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
-import java.util.logging.FileHandler;
-import java.util.logging.Logger;
-import java.util.logging.SimpleFormatter;
 
 public class Controller {
 
-    private static final Logger LOGGER = Logger.getLogger(Controller.class.getName());
+    private final Map<Integer, Condition> floorConditions;
 
-    Map<Integer, Condition> floorConditions;
+    private final List<Floor> floors;
 
-    List<Floor> floors;
+    private final Elevator elevator;
 
-    Elevator elevator;
+    private final Lock lock;
 
-    int passengersNumber;
+    private boolean passengersFlowFlag = true;
 
-    Lock lock;
 
-    private boolean passengersFlowFlag;
-
-    static {
-        setLogger("controller.log", false, LOGGER);
-    }
-
-    public static void setLogger(String fileName, boolean useParentHandlers, Logger logger) {
-        try {
-            ClassLoader classloader = Thread.currentThread().getContextClassLoader();
-            String platformIndependentPath = Paths.get(Objects.requireNonNull(classloader.getResource(fileName))
-                    .toURI()).toString();
-            FileHandler fh = new FileHandler(platformIndependentPath);
-            logger.addHandler(fh);
-            SimpleFormatter formatter = new SimpleFormatter();
-            fh.setFormatter(formatter);
-            logger.setUseParentHandlers(useParentHandlers);
-        } catch (IOException | URISyntaxException e) {
-            e.printStackTrace();
-        }
-    }
-
+    private final static Logger LOGGER = LoggerFactory.getLogger("controller");
 
     public Controller(List<Floor> floors, Elevator elevator, Map<Integer, Condition> floorConditions,
-                      Lock lock, int passengersNumber) {
+                      Lock lock) {
         this.elevator = elevator;
         this.floors = floors;
         this.floorConditions = floorConditions;
         this.lock = lock;
-        this.passengersNumber = passengersNumber;
     }
 
     public void startElevator() {
@@ -67,6 +41,11 @@ public class Controller {
     public void moveElevator() {
         lock.lock();
         int currentFloor = elevator.getCurrentFloor();
+        if (currentFloor == elevator.getTopFloor()) {
+            elevator.setMovementDirection(MovementDirection.DOWN);
+        } else if (currentFloor == 0) {
+            elevator.setMovementDirection(MovementDirection.UP);
+        }
         int nextFloor;
         switch (elevator.getMovementDirection()) {
             case UP -> nextFloor = currentFloor + 1;
@@ -75,22 +54,51 @@ public class Controller {
         }
         elevator.setCurrentFloor(nextFloor);
         LOGGER.info("MOVING_ELEVATOR from floor " + currentFloor + " to floor " + nextFloor);
+        floorConditions.get(currentFloor).signalAll();
         lock.unlock();
     }
 
     public void setElevatorReady() {
         lock.lock();
         int currentFloor = elevator.getCurrentFloor();
+        if (passengersFlowFlag) {
+            waitForPassengersToDeboard();
+        } else {
+            waitForPassengersToBoard();
+        }
         passengersFlowFlag = !passengersFlowFlag;
         floorConditions.get(currentFloor).signalAll();
         lock.unlock();
     }
 
 
+    private void waitForPassengersToDeboard() {
+        while (!canDeboard()) {
+            await();
+        }
+    }
+
+    private void waitForPassengersToBoard() {
+        while (!canBoard()) {
+            await();
+        }
+    }
+
+    private boolean canBoard() {
+        return floors.get(elevator.getCurrentFloor()).isDispatchContainerEmpty()
+                || !elevator.hasAvailablePlaces();
+    }
+
+    private boolean canDeboard() {
+        return elevator.isEmpty()
+                || elevator.getContainer().stream()
+                .noneMatch(passenger -> passenger.getDestinationFloor() == elevator.getCurrentFloor());
+    }
+
+
     public void boardPassenger(Passenger passenger) {
         lock.lock();
-        while (!(elevator.getCurrentFloor() == passenger.getSourceFloor()
-                && elevator.hasAvailablePlaces() && !passengersFlowFlag)) {
+        while (!(canBoard(passenger))) {
             await();
         }
         Floor floor = floors.get(elevator.getCurrentFloor());
@@ -98,13 +106,18 @@ public class Controller {
                 + " on floor-" + floor.getFloorNumber() + ") ");
         floor.removeFromDispatchContainer(passenger);
         elevator.addPassenger(passenger);
+        floorConditions.get(elevator.getCurrentFloor()).signalAll();
         lock.unlock();
+    }
+
+    private boolean canBoard(Passenger passenger) {
+        return elevator.getCurrentFloor() == passenger.getSourceFloor()
+                && elevator.hasAvailablePlaces() && !passengersFlowFlag;
     }
 
     public void deboardPassenger(Passenger passenger) {
         lock.lock();
-        while (!(elevator.getCurrentFloor() == passenger.getDestinationFloor()
-                && elevator.hasPassenger(passenger) && passengersFlowFlag)) {
+        while (!canDeboard(passenger)) {
             await();
         }
         Floor floor = floors.get(elevator.getCurrentFloor());
@@ -112,7 +125,13 @@ public class Controller {
                 + " on floor-" + floor.getFloorNumber() + ") ");
         elevator.removePassenger(passenger);
         floor.addToArrivalContainer(passenger);
+        floorConditions.get(elevator.getCurrentFloor()).signalAll();
         lock.unlock();
+    }
+
+    private boolean canDeboard(Passenger passenger) {
+        return elevator.getCurrentFloor() == passenger.getDestinationFloor()
+                && elevator.hasPassenger(passenger) && passengersFlowFlag;
     }
 
     public boolean checkIfCanFinishTransportation() {
@@ -126,81 +145,11 @@ public class Controller {
     }
 
 
-    public boolean validate(Logger logger) {
-        lock.lock();
-        boolean isElevatorEmpty = elevator.isEmpty();
-        if (isElevatorEmpty) {
-            logger.info("Elevator is empty - \u2713");
-        } else {
-            logger.info("Elevator is empty - \u274C");
-        }
-        boolean areDispatchContainersEmpty = validateDispatcherContainers();
-        if (areDispatchContainersEmpty) {
-            logger.info("All dispatchContainers are empty - \u2713");
-        } else {
-            logger.info("All dispatchContainers are empty - \u274C");
-        }
-        boolean allTransportationsAreCompleted = validateTransportationStates();
-        if (allTransportationsAreCompleted) {
-            logger.info("All passengers' transportation states are COMPLETED - \u2713");
-        } else {
-            logger.info("All passengers' transportation states are COMPLETED - \u274C");
-        }
-        boolean allPassengersArrivedToTheirFloors = validatePassengers();
-        if (allPassengersArrivedToTheirFloors) {
-            logger.info("All passengers arrived to their floors - \u2713");
-        } else {
-            logger.info("All passengers arrived to their floors  - \u274C");
-        }
-        boolean numberOfPassengersIsOk = validateNumberOfPassengers();
-        if (numberOfPassengersIsOk) {
-            logger.info("The amount of passengers in arrival containers" +
-                    " is equal to the initial passengersNumber - \u2713");
-        } else {
-            logger.info("The amount of passengers in arrival containers" +
-                    " is equal to the initial passengersNumber - \u274C");
-        }
-        lock.unlock();
-        return isElevatorEmpty && areDispatchContainersEmpty
-                && allTransportationsAreCompleted && allPassengersArrivedToTheirFloors
-                && numberOfPassengersIsOk;
-    }
-
-    private boolean validateDispatcherContainers() {
-        return floors
-                .stream()
-                .allMatch(Floor::isDispatchContainerEmpty);
-    }
-
-
-    private boolean validateTransportationStates() {
-        return floors
-                .stream()
-                .flatMap(floor -> floor.getArrivalContainer().stream())
-                .allMatch(passenger -> passenger.getTransportationState() == TransportationState.COMPLETED);
-    }
-
-    private boolean validatePassengers() {
-        return floors
-                .stream()
-                .allMatch(floor -> floor
-                        .getArrivalContainer()
-                        .stream()
-                        .allMatch(passenger -> passenger.getDestinationFloor() == floor.getFloorNumber()));
-    }
-
-    private boolean validateNumberOfPassengers() {
-        return floors
-                .stream()
-                .mapToLong(floor -> floor.getArrivalContainer().size())
-                .sum() == passengersNumber;
-    }
-
     private void await() {
         try {
             floorConditions.get(elevator.getCurrentFloor()).await();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        } catch (InterruptedException exception) {
+            throw new RuntimeException(exception);
         }
     }
 

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <appender name="FILE_CONTROLLER" class="ch.qos.logback.core.FileAppender">
+        <file>Task3/log/controller.log</file>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>info</level>
+        </filter>
+        <append>false</append>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd} %d{HH:mm:ss} %.-1level %thread %logger{36}: %m%n</pattern>
+        </encoder>
+    </appender>
+    <appender name="FILE_VALIDATION" class="ch.qos.logback.core.FileAppender">
+        <file>Task3/log/validation.log</file>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>info</level>
+        </filter>
+        <append>false</append>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd} %d{HH:mm:ss} %.-1level %thread %logger{36}: %m%n</pattern>
+        </encoder>
+    </appender>
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>info</level>
+        </filter>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd} %d{HH:mm:ss} %.-1level %thread %logger{36}: %m%n</pattern>
+        </encoder>
+    </appender>
+    <root level="info">
+    </root>
+    <logger name="controller" level="info" >
+        <appender-ref ref="FILE_CONTROLLER" />
+    </logger>
+    <logger name="validation" level="info" >
+        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="FILE_VALIDATION" />
+    </logger>
+</configuration>

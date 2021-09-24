@@ -1,8 +1,6 @@
-import java.io.FileInputStream;
-import java.io.IOException;
+import lombok.Getter;
+
 import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -10,47 +8,64 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+
 public final class Building {
 
+    @Getter
     private List<Floor> floors;
-
-    Controller controller;
-
+    @Getter
+    private Controller controller;
+    @Getter
     private Elevator elevator;
+    @Getter
+    private List<Passenger> passengers;
+    @Getter
+    private int passengersNumber;
+    @Getter
+    private Validators validators;
 
-    List<Passenger> passengersList;
 
     public Building() {
         initialize();
     }
 
-
     private void initialize() {
-        Properties prop = readPropertiesFile(
-                Objects.requireNonNull(Building.class.getResource("config.properties")).getPath());
-        int floorsNumber = Integer.parseInt(prop.getProperty("floorsNumber"));
-        int elevatorCapacity = Integer.parseInt(prop.getProperty("elevatorCapacity"));
-        int passengersNumber = Integer.parseInt(prop.getProperty("passengersNumber"));
-        initializePassengers(passengersNumber, floorsNumber);
+        PropertyUtil propertyUtil = new PropertyUtil("config.properties");
+        int floorsNumber = propertyUtil.getIntegerValueByPropertyName("floorsNumber");
+        int elevatorCapacity = propertyUtil.getIntegerValueByPropertyName("elevatorCapacity");
+        passengersNumber = propertyUtil.getIntegerValueByPropertyName("passengersNumber");
+        initializePassengers(floorsNumber);
         initializeFloors(floorsNumber);
         elevator = new Elevator(floorsNumber - 1, elevatorCapacity);
-        initializeController(passengersNumber, floorsNumber);
+        initializeController(floorsNumber);
+        initializeValidators();
     }
 
-    private void initializeController(int passengersNumber, int floorsNumber) {
+    private void initializeValidators() {
+        List<Validator> validatorList = List.of(
+                new ElevatorValidator(),
+                new DispatchContainersValidator(),
+                new TransportationStatesValidator(),
+                new PassengersValidator(),
+                new PassengersNumberValidator()
+        );
+        validators = new Validators(validatorList);
+    }
+
+    private void initializeController(int floorsNumber) {
         Lock lock = new ReentrantLock();
         Map<Integer, Condition> mapOfConditions =
                 Stream.iterate(0, n -> n + 1)
                         .limit(floorsNumber)
                         .collect(Collectors.toMap(i -> i, (i) -> lock.newCondition()));
-        controller = new Controller(floors, elevator, mapOfConditions, lock, passengersNumber);
+        controller = new Controller(floors, elevator, mapOfConditions, lock);
     }
 
-    private void initializePassengers(int passengersNumber, int floorsNumber) {
-        Random random = new Random();
-        passengersList = Stream.iterate(0, n -> n + 1)
+    private void initializePassengers(int floorsNumber) {
+        PassengersRandomUtil passengersRandomUtil = new PassengersRandomUtil(floorsNumber);
+        passengers = Stream.iterate(0, n -> n + 1)
                 .limit(passengersNumber)
-                .map(id -> randomizePassenger(id, floorsNumber, random))
+                .map(passengersRandomUtil::randomizePassenger)
                 .collect(Collectors.toList());
     }
 
@@ -60,49 +75,9 @@ public final class Building {
                         .limit(floorsNumber)
                         .map(Floor::new)
                         .collect(Collectors.toMap(Floor::getFloorNumber, Function.identity()));
-        passengersList
+        passengers
                 .forEach(passenger -> mapOfFloors.get(passenger.getSourceFloor()).addToDispatchContainer(passenger));
         floors = new ArrayList<>(mapOfFloors.values());
-    }
-
-    private static Passenger randomizePassenger(int id, int floorsNumber, Random random) {
-        int sourceFloor = randomize(floorsNumber, random);
-        int destinationFloor = randomize(floorsNumber, random, sourceFloor);
-        return new Passenger(id, sourceFloor, destinationFloor);
-    }
-
-
-    private static int randomize(int limit, Random random) {
-        return random.nextInt(limit);
-
-    }
-
-    private static int randomize(int limit, Random random, int unavailable) {
-        int result = unavailable;
-        while (result == unavailable) {
-            result = randomize(limit, random);
-        }
-        return result;
-    }
-
-
-    public static void main(String[] args) {
-        Building building = new Building();
-        ExecutorService tasks = Executors.newFixedThreadPool(building.passengersList.size() + 1);
-        tasks.execute(new ElevatorMovementTask(building.elevator, building.controller));
-        building.passengersList.
-                forEach((passenger -> tasks.execute(new PassengerTransportationTask(passenger, building.controller))));
-        tasks.shutdown();
-    }
-
-    private static Properties readPropertiesFile(String fileName) {
-        Properties prop = new Properties();
-        try (FileInputStream fis = new FileInputStream(fileName)) {
-            prop.load(fis);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return prop;
     }
 
 }

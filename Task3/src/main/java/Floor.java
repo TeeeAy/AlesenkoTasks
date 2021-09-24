@@ -1,10 +1,14 @@
+import lombok.Getter;
+
 import java.util.ArrayList;
 import java.util.List;
 
 public class Floor {
 
     private final List<Passenger> dispatchContainer = new ArrayList<>();
+    @Getter
     private final List<Passenger> arrivalContainer = new ArrayList<>();
+    @Getter
     private final int floorNumber;
 
 
@@ -12,10 +16,6 @@ public class Floor {
         this.floorNumber = floor;
     }
 
-
-    public int getFloorNumber() {
-        return floorNumber;
-    }
 
     public void addToDispatchContainer(Passenger passenger) {
         dispatchContainer.add(passenger);
@@ -31,10 +31,6 @@ public class Floor {
 
     public boolean isDispatchContainerEmpty() {
         return dispatchContainer.isEmpty();
-    }
-
-    public List<Passenger> getArrivalContainer() {
-        return arrivalContainer;
     }
 
 

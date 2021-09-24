@@ -1,7 +1,7 @@
 public class PassengerTransportationTask implements Runnable {
 
-    Passenger passenger;
-    Controller controller;
+    private final Passenger passenger;
+    private final Controller controller;
 
     PassengerTransportationTask(Passenger passenger, Controller controller) {
         this.controller = controller;
