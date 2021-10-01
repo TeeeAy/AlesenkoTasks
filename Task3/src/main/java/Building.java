@@ -11,37 +11,32 @@ import java.util.stream.Stream;
 
 public final class Building {
 
+    private final PropertyUtil propertyUtil = new PropertyUtil("config.properties");
+
     @Getter
-    private List<Floor> floors;
+    private final int passengersNumber = propertyUtil.getIntegerValueByPropertyName("passengersNumber");
     @Getter
-    private Controller controller;
+    private final Elevator elevator = initializeElevator(
+            propertyUtil.getIntegerValueByPropertyName("floorsNumber"),
+            propertyUtil.getIntegerValueByPropertyName("elevatorCapacity"));
     @Getter
-    private Elevator elevator;
+    private final List<Passenger> passengers = initializePassengers(
+            propertyUtil.getIntegerValueByPropertyName("floorsNumber"));
     @Getter
-    private List<Passenger> passengers;
+    private final List<Floor> floors = initializeFloors(
+            propertyUtil.getIntegerValueByPropertyName("floorsNumber"));
     @Getter
-    private int passengersNumber;
+    private final Controller controller = initializeController(
+            propertyUtil.getIntegerValueByPropertyName("floorsNumber"));
     @Getter
-    private Validators validators;
+    private final Validators validators = initializeValidators();
 
 
-    public Building() {
-        initialize();
+    private Elevator initializeElevator(int floorsNumber, int elevatorCapacity) {
+        return new Elevator(floorsNumber - 1, elevatorCapacity);
     }
 
-    private void initialize() {
-        PropertyUtil propertyUtil = new PropertyUtil("config.properties");
-        int floorsNumber = propertyUtil.getIntegerValueByPropertyName("floorsNumber");
-        int elevatorCapacity = propertyUtil.getIntegerValueByPropertyName("elevatorCapacity");
-        passengersNumber = propertyUtil.getIntegerValueByPropertyName("passengersNumber");
-        initializePassengers(floorsNumber);
-        initializeFloors(floorsNumber);
-        elevator = new Elevator(floorsNumber - 1, elevatorCapacity);
-        initializeController(floorsNumber);
-        initializeValidators();
-    }
-
-    private void initializeValidators() {
+    private Validators initializeValidators() {
         List<Validator> validatorList = List.of(
                 new ElevatorValidator(),
                 new DispatchContainersValidator(),
@@ -49,27 +44,27 @@ public final class Building {
                 new PassengersValidator(),
                 new PassengersNumberValidator()
         );
-        validators = new Validators(validatorList);
+        return new Validators(validatorList);
     }
 
-    private void initializeController(int floorsNumber) {
+    private Controller initializeController(int floorsNumber) {
         Lock lock = new ReentrantLock();
         Map<Integer, Condition> mapOfConditions =
                 Stream.iterate(0, n -> n + 1)
                         .limit(floorsNumber)
                         .collect(Collectors.toMap(i -> i, (i) -> lock.newCondition()));
-        controller = new Controller(floors, elevator, mapOfConditions, lock);
+        return new Controller(floors, elevator, mapOfConditions, lock);
     }
 
-    private void initializePassengers(int floorsNumber) {
+    private List<Passenger> initializePassengers(int floorsNumber) {
         PassengersRandomUtil passengersRandomUtil = new PassengersRandomUtil(floorsNumber);
-        passengers = Stream.iterate(0, n -> n + 1)
+        return Stream.iterate(0, n -> n + 1)
                 .limit(passengersNumber)
                 .map(passengersRandomUtil::randomizePassenger)
                 .collect(Collectors.toList());
     }
 
-    private void initializeFloors(int floorsNumber) {
+    private List<Floor> initializeFloors(int floorsNumber) {
         Map<Integer, Floor> mapOfFloors =
                 Stream.iterate(0, n -> n + 1)
                         .limit(floorsNumber)
@@ -77,7 +72,7 @@ public final class Building {
                         .collect(Collectors.toMap(Floor::getFloorNumber, Function.identity()));
         passengers
                 .forEach(passenger -> mapOfFloors.get(passenger.getSourceFloor()).addToDispatchContainer(passenger));
-        floors = new ArrayList<>(mapOfFloors.values());
+        return new ArrayList<>(mapOfFloors.values());
     }
 
 }

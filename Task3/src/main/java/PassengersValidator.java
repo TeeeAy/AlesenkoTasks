@@ -9,11 +9,13 @@ public class PassengersValidator implements Validator {
                         .getArrivalContainer()
                         .stream()
                         .allMatch(passenger -> passenger.getDestinationFloor() == floor.getFloorNumber()));
+        String value;
         if (allPassengersArrivedToTheirFloors) {
-            Validators.LOGGER.info("All passengers arrived to their floors - \u2713");
+            value = "\u2713";
         } else {
-            Validators.LOGGER.info("All passengers arrived to their floors  - \u274C");
+            value = "\u274C";
         }
+        Validators.LOGGER.info("All passengers arrived to their floors - " + value);
         return allPassengersArrivedToTheirFloors;
     }
 }

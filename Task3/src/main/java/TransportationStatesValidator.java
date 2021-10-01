@@ -7,11 +7,13 @@ public class TransportationStatesValidator implements Validator {
                 .stream()
                 .flatMap(floor -> floor.getArrivalContainer().stream())
                 .allMatch(passenger -> passenger.getTransportationState() == TransportationState.COMPLETED);
+        String value;
         if (allTransportationsAreCompleted) {
-            Validators.LOGGER.info("All passengers' transportation states are COMPLETED - \u2713");
+            value = "\u2713";
         } else {
-            Validators.LOGGER.info("All passengers' transportation states are COMPLETED - \u274C");
+            value = "\u274C";
         }
+        Validators.LOGGER.info("All passengers' transportation states are COMPLETED - " + value);
         return allTransportationsAreCompleted;
     }
 }

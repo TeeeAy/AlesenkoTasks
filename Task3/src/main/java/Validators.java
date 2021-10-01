@@ -18,11 +18,13 @@ public class Validators {
         boolean isValid = validatorList.
                 stream()
                 .allMatch(validator -> validator.validate(validationInfo));
+        String message;
         if (isValid) {
-            Validators.LOGGER.info("VALIDATION SUCCESSFUL");
+            message = "VALIDATION SUCCESSFUL";
         } else {
-            Validators.LOGGER.info("VALIDATION FAILED. SOMETHING WENT WRONG!!!");
+            message = "VALIDATION FAILED. SOMETHING WENT WRONG!!!";
         }
+        Validators.LOGGER.info(message);
     }
 
 

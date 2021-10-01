@@ -6,11 +6,13 @@ public class DispatchContainersValidator implements Validator {
                 .getFloors()
                 .stream()
                 .allMatch(Floor::isDispatchContainerEmpty);
+        String value;
         if (areDispatchContainersEmpty) {
-            Validators.LOGGER.info("All dispatchContainers are empty - \u2713");
+            value = "\u2713";
         } else {
-            Validators.LOGGER.info("All dispatchContainers are empty - \u274C");
+            value = "\u274C";
         }
+        Validators.LOGGER.info("All dispatchContainers are empty - " + value);
         return areDispatchContainersEmpty;
     }
 }

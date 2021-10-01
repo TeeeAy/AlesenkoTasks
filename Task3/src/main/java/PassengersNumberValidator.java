@@ -7,13 +7,14 @@ public class PassengersNumberValidator implements Validator {
                 .stream()
                 .mapToLong(floor -> floor.getArrivalContainer().size())
                 .sum() == validationInfo.getPassengersNumber();
+        String value;
         if (numberOfPassengersIsOk) {
-            Validators.LOGGER.info("The amount of passengers in arrival containers" +
-                    " is equal to the initial passengersNumber - \u2713");
+            value = "\u2713";
         } else {
-            Validators.LOGGER.info("The amount of passengers in arrival containers" +
-                    " is equal to the initial passengersNumber - \u274C");
+            value = "\u274C";
         }
+        Validators.LOGGER.info("The amount of passengers in arrival containers" +
+                " is equal to the initial passengersNumber - " + value);
         return numberOfPassengersIsOk;
     }
 }

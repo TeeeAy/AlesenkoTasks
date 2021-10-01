@@ -46,12 +46,7 @@ public class Controller {
         } else if (currentFloor == 0) {
             elevator.setMovementDirection(MovementDirection.UP);
         }
-        int nextFloor;
-        switch (elevator.getMovementDirection()) {
-            case UP -> nextFloor = currentFloor + 1;
-            case DOWN -> nextFloor = currentFloor - 1;
-            default -> throw new IllegalArgumentException();
-        }
+        int nextFloor = currentFloor + elevator.getMovementDirection().floorDelta();
         elevator.setCurrentFloor(nextFloor);
         LOGGER.info("MOVING_ELEVATOR from floor " + currentFloor + " to floor " + nextFloor);
         floorConditions.get(currentFloor).signalAll();
